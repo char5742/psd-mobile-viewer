@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="Mobile-first PSD/PSB file viewer — open, inspect and export Photoshop files entirely in your browser." />
+    <meta name="theme-color" content="#1e1e2e" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+    <title>PSD Viewer</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body class="bg-[#11111b] text-gray-100 min-h-screen overflow-hidden select-none">
+
+    <!-- ── Top toolbar ─────────────────────────────────────────────── -->
+    <header id="toolbar" class="fixed top-0 inset-x-0 z-30 flex items-center gap-2 px-3 py-2 bg-[#1e1e2e] border-b border-white/10 shadow-md">
+      <span class="font-bold text-[#89b4fa] text-base tracking-tight shrink-0">PSD Viewer</span>
+
+      <div class="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <!-- Open file -->
+        <button id="btn-open" title="Open file"
+          class="toolbar-btn">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+          <span class="hidden sm:inline text-xs">Open</span>
+        </button>
+        <input type="file" id="file-input" accept=".psd,.psb" class="hidden" />
+
+        <!-- Load sample -->
+        <button id="btn-sample" title="Load sample PSD"
+          class="toolbar-btn">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/></svg>
+          <span class="hidden sm:inline text-xs">Sample</span>
+        </button>
+
+        <!-- Divider -->
+        <span class="w-px h-5 bg-white/10 shrink-0"></span>
+
+        <!-- Export PNG -->
+        <button id="btn-export" title="Export as PNG"
+          class="toolbar-btn" disabled>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m0 5V3"/></svg>
+          <span class="hidden sm:inline text-xs">Export</span>
+        </button>
+
+        <!-- Fit to screen -->
+        <button id="btn-fit" title="Fit to screen"
+          class="toolbar-btn" disabled>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+          <span class="hidden sm:inline text-xs">Fit</span>
+        </button>
+      </div>
+
+      <!-- Layers toggle -->
+      <button id="btn-layers" title="Toggle layers panel"
+        class="toolbar-btn shrink-0" disabled>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span class="hidden sm:inline text-xs">Layers</span>
+      </button>
+    </header>
+
+    <!-- ── Canvas area ──────────────────────────────────────────────── -->
+    <main id="canvas-wrap"
+      class="fixed inset-0 top-[49px] flex items-center justify-center overflow-hidden touch-none"
+      style="background: repeating-conic-gradient(#1a1a2a 0% 25%, #111120 0% 50%) 0 0 / 24px 24px;">
+      <canvas id="main-canvas" class="block shadow-2xl"></canvas>
+    </main>
+
+    <!-- ── Drop overlay ─────────────────────────────────────────────── -->
+    <div id="drop-overlay"
+      class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#11111b]/90 backdrop-blur-sm pointer-events-none">
+      <svg class="w-20 h-20 text-[#89b4fa] mb-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+      </svg>
+      <p class="text-xl font-semibold text-[#89b4fa]">Drop PSD / PSB file</p>
+    </div>
+
+    <!-- ── Welcome screen ──────────────────────────────────────────── -->
+    <div id="welcome"
+      class="fixed inset-0 top-[49px] z-20 flex flex-col items-center justify-center gap-6 px-6 text-center pointer-events-none">
+      <div class="w-20 h-20 rounded-2xl bg-[#1e1e2e] flex items-center justify-center shadow-xl">
+        <svg class="w-10 h-10 text-[#89b4fa]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-white mb-1">PSD Viewer</h1>
+        <p class="text-gray-400 text-sm">Open a <code class="bg-white/10 rounded px-1 py-0.5">.psd</code> or <code class="bg-white/10 rounded px-1 py-0.5">.psb</code> file to get started</p>
+      </div>
+      <div class="flex flex-wrap justify-center gap-3 pointer-events-auto">
+        <button id="welcome-open"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#89b4fa] text-[#11111b] font-semibold text-sm shadow hover:bg-[#89b4fa]/80 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+          Open File
+        </button>
+        <button id="welcome-sample"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-white font-semibold text-sm shadow hover:bg-white/20 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/></svg>
+          Load Sample
+        </button>
+      </div>
+      <p class="text-gray-500 text-xs">or drag &amp; drop a file anywhere</p>
+    </div>
+
+    <!-- ── Loading spinner ─────────────────────────────────────────── -->
+    <div id="loading"
+      class="hidden fixed inset-0 top-[49px] z-40 flex flex-col items-center justify-center bg-[#11111b]/80 backdrop-blur-sm">
+      <div class="w-12 h-12 rounded-full border-4 border-[#89b4fa]/20 border-t-[#89b4fa] animate-spin mb-4"></div>
+      <p id="loading-msg" class="text-gray-300 text-sm">Loading…</p>
+    </div>
+
+    <!-- ── Toast ───────────────────────────────────────────────────── -->
+    <div id="toast"
+      class="hidden fixed bottom-[calc(var(--sheet-h,3.5rem)+1rem)] inset-x-0 z-50 flex justify-center pointer-events-none">
+      <div id="toast-msg"
+        class="bg-[#1e1e2e] border border-white/10 text-sm text-gray-200 rounded-xl px-4 py-2 shadow-lg">
+      </div>
+    </div>
+
+    <!-- ── Text layer info bubble ──────────────────────────────────── -->
+    <div id="text-info"
+      class="hidden fixed left-1/2 -translate-x-1/2 z-30 max-w-xs w-[calc(100%-2rem)]
+             bg-[#1e1e2e]/95 backdrop-blur border border-white/10 rounded-xl px-4 py-3 shadow-lg text-sm"
+      style="top: calc(49px + 0.75rem)">
+      <p class="text-[#89b4fa] font-medium mb-1 text-xs uppercase tracking-wide">Text Layer</p>
+      <p id="text-info-content" class="text-gray-200 leading-relaxed break-words"></p>
+    </div>
+
+    <!-- ── Bottom sheet (Layer panel) ─────────────────────────────── -->
+    <aside id="layer-sheet"
+      class="fixed inset-x-0 bottom-0 z-30
+             bg-[#1e1e2e] border-t border-white/10 rounded-t-2xl shadow-2xl
+             transition-transform duration-300 ease-out
+             translate-y-[calc(100%-3.5rem)]"
+      style="max-height: 70vh;">
+
+      <!-- Handle / header -->
+      <div id="sheet-handle"
+        class="flex items-center justify-between px-4 py-3 cursor-pointer select-none touch-none"
+        style="height: 3.5rem;">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-1 rounded-full bg-white/20 mx-auto"></div>
+        </div>
+        <span class="text-xs font-semibold text-gray-300 uppercase tracking-wider">Layers</span>
+        <button id="btn-sheet-close" class="text-gray-500 hover:text-gray-200 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
+
+      <!-- Layer list -->
+      <div id="layer-list"
+        class="overflow-y-auto overscroll-contain px-3 pb-6"
+        style="max-height: calc(70vh - 3.5rem);">
+        <p class="text-gray-500 text-sm text-center py-8">No file loaded</p>
+      </div>
+    </aside>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

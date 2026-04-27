@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+  }
+  body {
+    overscroll-behavior: none;
+  }
+  :root {
+    --sheet-h: 3.5rem;
+  }
+}
+
+@layer components {
+  .toolbar-btn {
+    @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
+           bg-white/5 hover:bg-white/10 active:bg-white/20
+           text-gray-300 hover:text-white
+           transition-colors text-sm shrink-0
+           disabled:opacity-30 disabled:pointer-events-none;
+  }
+
+  .layer-row {
+    @apply flex items-center gap-2 px-2 py-2 rounded-lg
+           hover:bg-white/5 active:bg-white/10
+           cursor-pointer transition-colors;
+  }
+
+  .layer-row.selected {
+    @apply bg-[#89b4fa]/10 ring-1 ring-[#89b4fa]/30;
+  }
+
+  .layer-icon {
+    @apply w-4 h-4 shrink-0 text-gray-400;
+  }
+
+  .layer-name {
+    @apply flex-1 text-sm text-gray-200 truncate;
+  }
+
+  .layer-vis-btn {
+    @apply shrink-0 w-7 h-7 flex items-center justify-center
+           rounded hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-200;
+  }
+
+  .layer-group-toggle {
+    @apply shrink-0 w-4 h-4 text-gray-500 transition-transform;
+  }
+  .layer-group-toggle.open {
+    @apply rotate-90;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .touch-none {
+    touch-action: none;
+  }
+}
