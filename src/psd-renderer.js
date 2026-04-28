@@ -31,53 +31,63 @@ const BLEND_MAP = {
   lum:  'luminosity',
 };
 
+/** Derive a stable string key for a layer, matching layer-panel.js */
+function _layerId(layer) {
+  return `${layer.name}__${layer.type}__${layer.left ?? 0}__${layer.top ?? 0}`;
+}
+
 /**
  * Composite all visible layers and return an ImageData.
  *
  * @param {import('@webtoon/psd').default} psd
- * @param {Map<number, { visible: boolean, opacity: number }>} layerState
+ * @param {Map<string, { visible: boolean, opacity: number }>} layerState
  * @param {number} psdWidth
  * @param {number} psdHeight
- * @returns {ImageData}
+ * @returns {Promise<ImageData>}
  */
-export function compositeToImageData(psd, layerState, psdWidth, psdHeight) {
+export async function compositeToImageData(psd, layerState, psdWidth, psdHeight) {
   const canvas = new OffscreenCanvas(psdWidth, psdHeight);
   const ctx = canvas.getContext('2d');
 
   // Walk through layers bottom-to-top (reversed)
-  const layers = [...psd.layers].reverse();
-  _drawLayers(ctx, layers, layerState, psdWidth, psdHeight, 0);
+  const layers = [...psd.children].reverse();
+  await _drawLayers(ctx, layers, layerState, psdWidth, psdHeight);
 
   return ctx.getImageData(0, 0, psdWidth, psdHeight);
 }
 
-function _drawLayers(ctx, layers, layerState, psdWidth, psdHeight, groupOpacity) {
+async function _drawLayers(ctx, layers, layerState, psdWidth, psdHeight) {
   for (const layer of layers) {
-    const state = layerState.get(layer[Symbol.for?.('id')] ?? layer.name) ?? {
-      visible: !layer.isHidden,
+    const id = _layerId(layer);
+    const state = layerState.get(id) ?? {
+      visible: !(layer.isHidden ?? false),
       opacity: layer.opacity ?? 255,
     };
 
     if (!state.visible) continue;
+
+    const blendMode = layer.layerFrame?.layerProperties?.blendMode;
 
     if (layer.children && layer.children.length > 0) {
       // Group — composite children into a temporary canvas then draw
       const groupCanvas = new OffscreenCanvas(psdWidth, psdHeight);
       const groupCtx = groupCanvas.getContext('2d');
       const childLayers = [...layer.children].reverse();
-      _drawLayers(groupCtx, childLayers, layerState, psdWidth, psdHeight, state.opacity / 255);
+      await _drawLayers(groupCtx, childLayers, layerState, psdWidth, psdHeight);
       ctx.save();
-      ctx.globalAlpha = (state.opacity / 255) * (groupOpacity || 1);
-      ctx.globalCompositeOperation = BLEND_MAP[layer.blendMode] ?? 'source-over';
+      ctx.globalAlpha = state.opacity / 255;
+      ctx.globalCompositeOperation = BLEND_MAP[blendMode] ?? 'source-over';
       ctx.drawImage(groupCanvas, 0, 0);
       ctx.restore();
       continue;
     }
 
-    // Leaf layer
+    // Leaf layer — use the library's async composite() to decode pixel data
     try {
-      const pixelData = layer.compositeBuffer;
-      if (!pixelData || layer.width === 0 || layer.height === 0) continue;
+      if (layer.width === 0 || layer.height === 0) continue;
+
+      const pixelData = await layer.composite(false, false); // applyEffects=false, useComposedOpacity=false — raw RGBA; opacity applied via ctx.globalAlpha
+      if (!pixelData || pixelData.length === 0) continue;
 
       const imgData = new ImageData(
         new Uint8ClampedArray(pixelData),
@@ -89,11 +99,12 @@ function _drawLayers(ctx, layers, layerState, psdWidth, psdHeight, groupOpacity)
 
       ctx.save();
       ctx.globalAlpha = state.opacity / 255;
-      ctx.globalCompositeOperation = BLEND_MAP[layer.blendMode] ?? 'source-over';
+      ctx.globalCompositeOperation = BLEND_MAP[blendMode] ?? 'source-over';
       ctx.drawImage(tmp, layer.left, layer.top);
       ctx.restore();
-    } catch {
-      // Skip layers that fail to render
+    } catch (err) {
+      // Skip layers that fail to render (e.g. unsupported encoding), but log for debugging
+      console.warn('Failed to composite layer:', layer.name, err);
     }
   }
 }

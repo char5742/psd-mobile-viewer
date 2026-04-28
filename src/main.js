@@ -77,9 +77,9 @@ function scheduleComposite() {
   });
 }
 
-function recomposite() {
+async function recomposite() {
   if (!psd) return;
-  compositeImageData = compositeToImageData(psd, layerState, psdWidth, psdHeight);
+  compositeImageData = await compositeToImageData(psd, layerState, psdWidth, psdHeight);
   renderToCanvas(canvas, compositeImageData, viewport);
 }
 
@@ -103,10 +103,10 @@ async function loadPSD(buffer) {
     psdHeight = psd.height;
 
     showLoading('Compositing layers…');
-    panel.build(psd.layers);
+    panel.build(psd.children);
     layerState = panel.state;
 
-    compositeImageData = compositeToImageData(psd, layerState, psdWidth, psdHeight);
+    compositeImageData = await compositeToImageData(psd, layerState, psdWidth, psdHeight);
 
     const wrap = canvas.parentElement;
     const fit = fitViewport(psdWidth, psdHeight, wrap.clientWidth, wrap.clientHeight);
@@ -125,7 +125,7 @@ async function loadPSD(buffer) {
     welcome.style.display = 'none';
     textInfo.classList.add('hidden');
 
-    toast(`Loaded ${psd.layers.length} layer${psd.layers.length !== 1 ? 's' : ''}`);
+    toast(`Loaded ${psd.children.length} layer${psd.children.length !== 1 ? 's' : ''}`);
   } catch (err) {
     console.error(err);
     toast('Failed to parse PSD: ' + (err.message ?? err), true);
